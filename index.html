@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Netflix A/B Testing Case Study — MIS 432</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Source+Sans+3:wght@300;400;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --netflix-red: #E50914;
+    --netflix-red-dark: #B20710;
+    --bg-primary: #141414;
+    --bg-card: #1a1a1a;
+    --bg-card-alt: #1f1f1f;
+    --bg-code: #0d0d0d;
+    --text-primary: #e5e5e5;
+    --text-secondary: #999;
+    --text-bright: #ffffff;
+    --accent-blue: #4A90D9;
+    --accent-coral: #E85D75;
+    --border-subtle: #2a2a2a;
+    --glow-red: rgba(229, 9, 20, 0.15);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Source Sans 3', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.7;
+    font-size: 17px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- HERO ---- */
+  .hero {
+    position: relative;
+    min-height: 92vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse at 20% 50%, var(--glow-red), transparent 55%),
+      radial-gradient(ellipse at 80% 50%, rgba(229, 9, 20, 0.08), transparent 55%),
+      var(--bg-primary);
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.03) 2px,
+      rgba(0,0,0,0.03) 4px
+    );
+    pointer-events: none;
+  }
+
+  .hero-content { position: relative; z-index: 1; max-width: 820px; }
+
+  .hero-badge {
+    display: inline-block;
+    font-family: 'Source Sans 3', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--netflix-red);
+    border: 1px solid var(--netflix-red);
+    padding: 0.35rem 1rem;
+    border-radius: 2px;
+    margin-bottom: 1.8rem;
+    animation: fadeDown 0.8s ease-out both;
+  }
+
+  .hero h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(3rem, 8vw, 6.5rem);
+    color: var(--text-bright);
+    line-height: 1.05;
+    letter-spacing: 0.02em;
+    margin-bottom: 1.2rem;
+    animation: fadeDown 0.8s 0.15s ease-out both;
+  }
+
+  .hero h1 span { color: var(--netflix-red); }
+
+  .hero p {
+    font-size: 1.15rem;
+    color: var(--text-secondary);
+    max-width: 600px;
+    margin: 0 auto 2.5rem;
+    font-weight: 300;
+    animation: fadeDown 0.8s 0.3s ease-out both;
+  }
+
+  .hero-meta {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    animation: fadeDown 0.8s 0.45s ease-out both;
+  }
+  .hero-meta strong { color: var(--text-primary); font-weight: 600; }
+
+  .scroll-cue {
+    position: absolute;
+    bottom: 2.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    animation: bounce 2s infinite;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .scroll-cue::after {
+    content: '↓';
+    display: block;
+    text-align: center;
+    margin-top: 0.3rem;
+    font-size: 1.2rem;
+  }
+
+  /* ---- LAYOUT ---- */
+  .container {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+  }
+
+  section { padding: 5rem 0; }
+
+  .section-label {
+    font-family: 'Source Sans 3', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--netflix-red);
+    margin-bottom: 0.8rem;
+  }
+
+  h2 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(2rem, 5vw, 3rem);
+    color: var(--text-bright);
+    letter-spacing: 0.02em;
+    margin-bottom: 1.5rem;
+    line-height: 1.1;
+  }
+
+  p + p { margin-top: 1rem; }
+
+  .divider {
+    border: none;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border-subtle), transparent);
+  }
+
+  /* ---- CARDS ---- */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    padding: 2rem;
+    margin-top: 1.5rem;
+  }
+
+  .card h3 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.5rem;
+    color: var(--text-bright);
+    letter-spacing: 0.03em;
+    margin-bottom: 0.6rem;
+  }
+
+  /* ---- STEPS TIMELINE ---- */
+  .steps { margin-top: 2rem; }
+
+  .step {
+    position: relative;
+    padding-left: 2.5rem;
+    padding-bottom: 2.5rem;
+    border-left: 2px solid var(--border-subtle);
+  }
+  .step:last-child { border-left-color: transparent; padding-bottom: 0; }
+
+  .step-number {
+    position: absolute;
+    left: -0.85rem;
+    top: 0;
+    width: 1.55rem;
+    height: 1.55rem;
+    background: var(--netflix-red);
+    color: var(--text-bright);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+  }
+
+  .step h3 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    color: var(--text-bright);
+    letter-spacing: 0.03em;
+    margin-bottom: 0.4rem;
+  }
+
+  /* ---- CHART ---- */
+  .chart-wrapper {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    padding: 2.5rem 2rem;
+    margin-top: 2rem;
+    text-align: center;
+  }
+
+  .chart-bars {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 3rem;
+    height: 260px;
+    margin: 2rem 0 1rem;
+  }
+
+  .bar-group { text-align: center; }
+
+  .bar {
+    width: 90px;
+    border-radius: 4px 4px 0 0;
+    position: relative;
+    animation: growUp 1s ease-out both;
+  }
+
+  .bar-a {
+    height: 192px; /* scaled: 0.24 / 0.30 * 240 */
+    background: linear-gradient(180deg, var(--accent-blue), #3670ad);
+    animation-delay: 0.2s;
+  }
+  .bar-b {
+    height: 240px;
+    background: linear-gradient(180deg, var(--accent-coral), #c44a60);
+    animation-delay: 0.4s;
+  }
+
+  .bar-value {
+    position: absolute;
+    top: -2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--text-bright);
+  }
+
+  .bar-label {
+    margin-top: 0.6rem;
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+
+  .chart-caption {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-top: 0.5rem;
+  }
+
+  /* ---- RESULTS TABLE ---- */
+  .results-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  .result-card {
+    background: var(--bg-card-alt);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    padding: 1.5rem;
+    text-align: center;
+  }
+
+  .result-card .label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 0.4rem;
+  }
+
+  .result-card .value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.2rem;
+    color: var(--text-bright);
+    letter-spacing: 0.02em;
+  }
+
+  .result-card .value.red { color: var(--netflix-red); }
+  .result-card .value.green { color: #2ecc71; }
+
+  /* ---- CODE BLOCK ---- */
+  .code-section { margin-top: 2rem; }
+
+  .code-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    padding: 0.65rem 1.3rem;
+    border-radius: 4px;
+    font-family: 'Source Sans 3', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .code-toggle:hover { border-color: var(--netflix-red); }
+  .code-toggle .arrow { transition: transform 0.3s; }
+  .code-toggle.open .arrow { transform: rotate(180deg); }
+
+  .code-container {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.5s ease;
+    margin-top: 0.8rem;
+  }
+  .code-container.open { max-height: 8000px; }
+
+  pre {
+    background: var(--bg-code);
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    padding: 1.5rem;
+    overflow-x: auto;
+    font-family: 'Fira Code', monospace;
+    font-size: 0.82rem;
+    line-height: 1.65;
+    color: #c9d1d9;
+    tab-size: 4;
+  }
+
+  pre .comment { color: #6a737d; }
+  pre .keyword { color: #ff7b72; }
+  pre .string { color: #a5d6ff; }
+  pre .function { color: #d2a8ff; }
+  pre .number { color: #79c0ff; }
+
+  /* ---- RECOMMENDATION ---- */
+  .rec-box {
+    background: linear-gradient(135deg, rgba(229,9,20,0.08), rgba(229,9,20,0.03));
+    border: 1px solid rgba(229,9,20,0.25);
+    border-left: 4px solid var(--netflix-red);
+    border-radius: 6px;
+    padding: 2rem;
+    margin-top: 2rem;
+  }
+
+  .rec-box h3 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.6rem;
+    color: var(--netflix-red);
+    letter-spacing: 0.03em;
+    margin-bottom: 0.6rem;
+  }
+
+  /* ---- FOOTER ---- */
+  footer {
+    text-align: center;
+    padding: 3rem 1.5rem;
+    border-top: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+  }
+  footer strong { color: var(--text-primary); }
+
+  /* ---- ANIMATIONS ---- */
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-18px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes growUp {
+    from { height: 0; }
+  }
+  @keyframes bounce {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(6px); }
+  }
+
+  /* ---- RESPONSIVE ---- */
+  @media (max-width: 640px) {
+    section { padding: 3.5rem 0; }
+    .card { padding: 1.4rem; }
+    .chart-bars { gap: 2rem; }
+    .bar { width: 70px; }
+    .bar-a { height: 144px; }
+    .bar-b { height: 180px; }
+    .chart-bars { height: 200px; }
+    .results-grid { grid-template-columns: 1fr; }
+    pre { font-size: 0.72rem; padding: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================ -->
+<!-- HERO -->
+<!-- ============================================================ -->
+<header class="hero">
+  <div class="hero-content">
+    <div class="hero-badge">MIS 432 · AI in Business</div>
+    <h1>Does Artwork <span>Actually</span> Drive Clicks?</h1>
+    <p>A simulated A/B test inspired by Netflix's real experimentation system — built in Python, analyzed with statistics, and translated into a business recommendation.</p>
+    <div class="hero-meta">
+      <strong>Western Washington University</strong> · College of Business and Economics
+    </div>
+  </div>
+  <div class="scroll-cue">Scroll</div>
+</header>
+
+<!-- ============================================================ -->
+<!-- THE BUSINESS PROBLEM -->
+<!-- ============================================================ -->
+<section>
+  <div class="container">
+    <div class="section-label">Context</div>
+    <h2>The Business Problem</h2>
+    <p>Netflix has over 200 million subscribers choosing from thousands of titles every day. The artwork that represents each title — the thumbnail image a user sees while browsing — is one of the strongest levers the company has to influence whether someone clicks "play" or keeps scrolling.</p>
+    <p>But which artwork works best? Designers and marketers can debate preferences endlessly. Netflix settles the question with data. The company runs thousands of A/B tests every year, showing different versions of artwork to different groups of users and measuring which version drives more engagement. This practice sits at the intersection of machine learning and experimentation: algorithms personalize artwork selection at scale, and rigorous testing validates that each change actually improves the experience.</p>
+    <p>This project replicates that logic. I simulated a controlled experiment between two artwork versions, measured the results, ran a statistical test, and arrived at a recommendation — the same workflow a Netflix data science team would follow before shipping a change to production.</p>
+  </div>
+</section>
+
+<div class="container"><hr class="divider"></div>
+
+<!-- ============================================================ -->
+<!-- WHAT I BUILT -->
+<!-- ============================================================ -->
+<section>
+  <div class="container">
+    <div class="section-label">Methodology</div>
+    <h2>What I Built</h2>
+    <p>The simulation runs in three steps, each building on the last. Together they form a complete experimentation pipeline — from data generation through statistical analysis to a go/no-go decision.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-number">1</div>
+        <h3>Simulate the Experiment</h3>
+        <p>I created 1,000 virtual users and randomly assigned each one to see either Artwork A or Artwork B. Users who saw Artwork A had a 24% probability of clicking; users who saw Artwork B had a 30% probability. A random number generator simulated whether each user actually clicked, producing a dataset that mirrors what Netflix's event logging pipeline would capture in a real test.</p>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <h3>Measure the Results</h3>
+        <p>I grouped the data by artwork version and calculated three metrics for each group: total users, total clicks, and the click-through rate (CTR). These are the first numbers a product team checks when an experiment closes — they reveal whether one version is outperforming the other and by how much.</p>
+      </div>
+      <div class="step">
+        <div class="step-number">3</div>
+        <h3>Test for Statistical Significance</h3>
+        <p>A higher click rate in the sample doesn't automatically mean the artwork is better — the gap could be random noise. I ran a two-proportion z-test to calculate the probability that a difference this large would appear if the two artworks were actually identical. If that probability (the p-value) falls below 5%, the result is considered statistically significant — meaning the difference is almost certainly real, not luck.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="container"><hr class="divider"></div>
+
+<!-- ============================================================ -->
+<!-- RESULTS -->
+<!-- ============================================================ -->
+<section>
+  <div class="container">
+    <div class="section-label">Findings</div>
+    <h2>What the Data Shows</h2>
+
+    <div class="chart-wrapper">
+      <div style="font-size:0.75rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-secondary); font-weight:600;">Click-Through Rate by Artwork Version</div>
+      <div class="chart-bars">
+        <div class="bar-group">
+          <div class="bar bar-a">
+            <div class="bar-value">~24%</div>
+          </div>
+          <div class="bar-label">Artwork A</div>
+        </div>
+        <div class="bar-group">
+          <div class="bar bar-b">
+            <div class="bar-value">~30%</div>
+          </div>
+          <div class="bar-label">Artwork B</div>
+        </div>
+      </div>
+      <div class="chart-caption">Simulated click-through rates across ~500 users per group</div>
+    </div>
+
+    <div class="results-grid">
+      <div class="result-card">
+        <div class="label">Observed Lift</div>
+        <div class="value">~6pp</div>
+      </div>
+      <div class="result-card">
+        <div class="label">Confidence Level</div>
+        <div class="value">95%</div>
+      </div>
+      <div class="result-card">
+        <div class="label">P-Value</div>
+        <div class="value green">< 0.05</div>
+      </div>
+      <div class="result-card">
+        <div class="label">Verdict</div>
+        <div class="value red">Significant</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:2rem;">
+      <h3>Reading the Results</h3>
+      <p>Artwork B drove roughly 30% of users to click, compared to about 24% for Artwork A — a lift of approximately 6 percentage points. The z-test returned a p-value well below the standard 0.05 threshold, which means we can be at least 95% confident this gap reflects a genuine difference in user behavior, not random chance in the sample.</p>
+      <p>In practical terms: if Netflix showed Artwork B to its entire user base instead of Artwork A, the data strongly suggests more people would engage with the title.</p>
+    </div>
+  </div>
+</section>
+
+<div class="container"><hr class="divider"></div>
+
+<!-- ============================================================ -->
+<!-- RECOMMENDATION -->
+<!-- ============================================================ -->
+<section>
+  <div class="container">
+    <div class="section-label">Decision</div>
+    <h2>Business Recommendation</h2>
+
+    <div class="rec-box">
+      <h3>Ship Artwork B</h3>
+      <p>The experiment produced a statistically significant result: Artwork B outperforms Artwork A by a meaningful margin. Based on this evidence, the recommendation is to roll out Artwork B to all users for this title. In a production environment, Netflix would log this decision, archive the experiment data, and feed the result back into its machine learning personalization models so the system gets smarter with every test it runs.</p>
+      <p style="margin-top:1rem;">This is exactly how experimentation drives value in a data-driven organization. Instead of relying on intuition or committee debates, the company lets user behavior answer the question — and the answer is clear.</p>
+    </div>
+  </div>
+</section>
+
+<div class="container"><hr class="divider"></div>
+
+<!-- ============================================================ -->
+<!-- CODE -->
+<!-- ============================================================ -->
+<section>
+  <div class="container">
+    <div class="section-label">Implementation</div>
+    <h2>Complete Python Code</h2>
+    <p>The full simulation, analysis, and visualization — ready to run in Google Colab or any Python environment with NumPy, pandas, matplotlib, and statsmodels installed.</p>
+
+    <div class="code-section">
+      <button class="code-toggle" onclick="toggleCode()" id="codeToggle">
+        <span>View Source Code</span>
+        <span class="arrow">▼</span>
+      </button>
+      <div class="code-container" id="codeContainer">
+<pre><span class="keyword">import</span> numpy <span class="keyword">as</span> np
+<span class="keyword">import</span> pandas <span class="keyword">as</span> pd
+<span class="keyword">import</span> matplotlib.pyplot <span class="keyword">as</span> plt
+<span class="keyword">from</span> statsmodels.stats.proportion <span class="keyword">import</span> proportions_ztest
+
+<span class="comment"># ==================================================================</span>
+<span class="comment"># STEP 1: SIMULATE THE EXPERIMENT</span>
+<span class="comment"># ==================================================================</span>
+
+<span class="comment"># Lock in randomness so results are identical on every run</span>
+np.random.seed(<span class="number">42</span>)
+
+<span class="comment"># ------------------------------------------------------------------</span>
+<span class="comment"># Define experiment parameters</span>
+<span class="comment">#   - 1,000 total users in the test</span>
+<span class="comment">#   - Artwork A: 24% true click probability</span>
+<span class="comment">#   - Artwork B: 30% true click probability</span>
+<span class="comment"># ------------------------------------------------------------------</span>
+n_users = <span class="number">1000</span>
+click_prob_a = <span class="number">0.24</span>
+click_prob_b = <span class="number">0.30</span>
+
+<span class="comment"># Create sequential user IDs from 1 through 1,000</span>
+user_ids = np.<span class="function">arange</span>(<span class="number">1</span>, n_users + <span class="number">1</span>)
+
+<span class="comment"># Randomly assign each user to see Artwork A or Artwork B (50/50 split)</span>
+artwork_versions = np.random.<span class="function">choice</span>([<span class="string">'A'</span>, <span class="string">'B'</span>], size=n_users)
+
+<span class="comment"># ------------------------------------------------------------------</span>
+<span class="comment"># Simulate clicks using a Bernoulli trial for each user</span>
+<span class="comment">#   - np.where picks the correct click probability based on group</span>
+<span class="comment">#   - np.random.binomial(1, p) returns 1 (clicked) with probability p</span>
+<span class="comment"># ------------------------------------------------------------------</span>
+click_probs = np.<span class="function">where</span>(artwork_versions == <span class="string">'A'</span>, click_prob_a, click_prob_b)
+clicks = np.random.<span class="function">binomial</span>(<span class="number">1</span>, click_probs)
+
+<span class="comment"># Assemble the three columns into a single DataFrame</span>
+df = pd.<span class="function">DataFrame</span>({
+    <span class="string">'user_id'</span>: user_ids,
+    <span class="string">'artwork'</span>: artwork_versions,
+    <span class="string">'clicked'</span>: clicks
+})
+
+<span class="comment"># ==================================================================</span>
+<span class="comment"># STEP 2: CALCULATE GROUP-LEVEL METRICS</span>
+<span class="comment"># ==================================================================</span>
+
+<span class="comment"># ------------------------------------------------------------------</span>
+<span class="comment"># Group the DataFrame by artwork version and compute three metrics:</span>
+<span class="comment">#   - total_users: how many users were assigned to each group</span>
+<span class="comment">#   - total_clicks: how many of those users clicked</span>
+<span class="comment">#   - click_through_rate: total_clicks / total_users</span>
+<span class="comment"># ------------------------------------------------------------------</span>
+summary = df.<span class="function">groupby</span>(<span class="string">'artwork'</span>)[<span class="string">'clicked'</span>].<span class="function">agg</span>(
+    total_users=<span class="string">'count'</span>,
+    total_clicks=<span class="string">'sum'</span>
+)
+
+<span class="comment"># Compute click-through rate as a new column (clicks / users)</span>
+summary[<span class="string">'click_through_rate'</span>] = summary[<span class="string">'total_clicks'</span>] / summary[<span class="string">'total_users'</span>]
+
+<span class="comment"># Print the summary table</span>
+<span class="function">print</span>(<span class="string">"="</span> * <span class="number">55</span>)
+<span class="function">print</span>(<span class="string">"GROUP-LEVEL SUMMARY"</span>)
+<span class="function">print</span>(<span class="string">"="</span> * <span class="number">55</span>)
+<span class="function">print</span>(summary)
+<span class="function">print</span>()
+
+<span class="keyword">for</span> group_name, row <span class="keyword">in</span> summary.<span class="function">iterrows</span>():
+    <span class="function">print</span>(<span class="string">f"Artwork {group_name}: "</span>
+          <span class="string">f"{row['total_users']:.0f} users, "</span>
+          <span class="string">f"{row['total_clicks']:.0f} clicks, "</span>
+          <span class="string">f"CTR = {row['click_through_rate']:.2%}"</span>)
+
+<span class="comment"># ==================================================================</span>
+<span class="comment"># STEP 3: VISUALIZE THE CLICK-THROUGH RATES</span>
+<span class="comment"># ==================================================================</span>
+
+fig, ax = plt.<span class="function">subplots</span>(figsize=(<span class="number">6</span>, <span class="number">4</span>))
+
+groups = summary.index.<span class="function">tolist</span>()
+ctrs = summary[<span class="string">'click_through_rate'</span>].<span class="function">tolist</span>()
+colors = [<span class="string">'#4A90D9'</span>, <span class="string">'#E85D75'</span>]
+
+bars = ax.<span class="function">bar</span>(groups, ctrs, color=colors, width=<span class="number">0.5</span>, edgecolor=<span class="string">'white'</span>)
+
+<span class="comment"># Add the exact CTR percentage on top of each bar</span>
+<span class="keyword">for</span> bar, ctr <span class="keyword">in</span> <span class="function">zip</span>(bars, ctrs):
+    ax.<span class="function">text</span>(
+        bar.<span class="function">get_x</span>() + bar.<span class="function">get_width</span>() / <span class="number">2</span>,
+        bar.<span class="function">get_height</span>() + <span class="number">0.005</span>,
+        <span class="string">f"{ctr:.2%}"</span>,
+        ha=<span class="string">'center'</span>, fontsize=<span class="number">13</span>, fontweight=<span class="string">'bold'</span>
+    )
+
+ax.<span class="function">set_title</span>(<span class="string">'Click-Through Rate by Artwork Version'</span>, fontsize=<span class="number">14</span>, fontweight=<span class="string">'bold'</span>)
+ax.<span class="function">set_xlabel</span>(<span class="string">'Artwork Version'</span>, fontsize=<span class="number">12</span>)
+ax.<span class="function">set_ylabel</span>(<span class="string">'Click-Through Rate'</span>, fontsize=<span class="number">12</span>)
+ax.<span class="function">set_ylim</span>(<span class="number">0</span>, <span class="function">max</span>(ctrs) + <span class="number">0.08</span>)
+ax.yaxis.<span class="function">set_major_formatter</span>(plt.<span class="function">FuncFormatter</span>(<span class="keyword">lambda</span> y, _: <span class="string">f'{y:.0%}'</span>))
+ax.spines[<span class="string">'top'</span>].<span class="function">set_visible</span>(<span class="number">False</span>)
+ax.spines[<span class="string">'right'</span>].<span class="function">set_visible</span>(<span class="number">False</span>)
+ax.<span class="function">grid</span>(axis=<span class="string">'y'</span>, alpha=<span class="number">0.3</span>)
+
+plt.<span class="function">tight_layout</span>()
+plt.<span class="function">show</span>()
+
+<span class="comment"># ==================================================================</span>
+<span class="comment"># STEP 4: STATISTICAL SIGNIFICANCE TEST</span>
+<span class="comment"># ==================================================================</span>
+
+clicks_a = summary.<span class="function">loc</span>[<span class="string">'A'</span>, <span class="string">'total_clicks'</span>]
+clicks_b = summary.<span class="function">loc</span>[<span class="string">'B'</span>, <span class="string">'total_clicks'</span>]
+n_a = summary.<span class="function">loc</span>[<span class="string">'A'</span>, <span class="string">'total_users'</span>]
+n_b = summary.<span class="function">loc</span>[<span class="string">'B'</span>, <span class="string">'total_users'</span>]
+
+<span class="comment"># Run a two-proportion z-test</span>
+<span class="comment">#   - count: clicks per group</span>
+<span class="comment">#   - nobs: users per group</span>
+<span class="comment">#   - alternative='two-sided': test for any difference</span>
+z_stat, p_value = <span class="function">proportions_ztest</span>(
+    count=np.<span class="function">array</span>([clicks_a, clicks_b]),
+    nobs=np.<span class="function">array</span>([n_a, n_b]),
+    alternative=<span class="string">'two-sided'</span>
+)
+
+alpha = <span class="number">0.05</span>
+
+<span class="function">print</span>()
+<span class="function">print</span>(<span class="string">"="</span> * <span class="number">55</span>)
+<span class="function">print</span>(<span class="string">"STATISTICAL SIGNIFICANCE TEST (Two-Proportion Z-Test)"</span>)
+<span class="function">print</span>(<span class="string">"="</span> * <span class="number">55</span>)
+<span class="function">print</span>(<span class="string">f"  Artwork A CTR:   {summary.loc['A', 'click_through_rate']:.2%}"</span>)
+<span class="function">print</span>(<span class="string">f"  Artwork B CTR:   {summary.loc['B', 'click_through_rate']:.2%}"</span>)
+<span class="function">print</span>(<span class="string">f"  Observed lift:   {summary.loc['B', 'click_through_rate'] - summary.loc['A', 'click_through_rate']:.2%}"</span>)
+<span class="function">print</span>(<span class="string">f"  Z-statistic:     {z_stat:.4f}"</span>)
+<span class="function">print</span>(<span class="string">f"  P-value:         {p_value:.4f}"</span>)
+<span class="function">print</span>(<span class="string">f"  Significance α:  {alpha}"</span>)
+<span class="function">print</span>(<span class="string">"-"</span> * <span class="number">55</span>)
+
+<span class="keyword">if</span> p_value < alpha:
+    <span class="function">print</span>(<span class="string">"  ✅ RESULT: Statistically significant difference detected."</span>)
+    <span class="function">print</span>(<span class="string">"     The gap in click-through rates is very unlikely to be"</span>)
+    <span class="function">print</span>(<span class="string">"     random noise. Artwork B is the stronger performer."</span>)
+<span class="keyword">else</span>:
+    <span class="function">print</span>(<span class="string">"  ⚠️  RESULT: No statistically significant difference."</span>)
+    <span class="function">print</span>(<span class="string">"     We cannot confidently say the artworks perform differently."</span>)
+    <span class="function">print</span>(<span class="string">"     The observed gap could plausibly be due to chance."</span>)
+<span class="function">print</span>(<span class="string">"="</span> * <span class="number">55</span>)</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- FOOTER -->
+<!-- ============================================================ -->
+<footer>
+  <p><strong>MIS 432: AI in Business</strong></p>
+  <p>Western Washington University · College of Business and Economics</p>
+  <p style="margin-top:0.5rem;">Built with Python · NumPy · pandas · matplotlib · statsmodels</p>
+</footer>
+
+<script>
+  function toggleCode() {
+    const btn = document.getElementById('codeToggle');
+    const container = document.getElementById('codeContainer');
+    btn.classList.toggle('open');
+    container.classList.toggle('open');
+  }
+</script>
+</body>
+</html>
